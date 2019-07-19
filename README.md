@@ -16,6 +16,8 @@ Notes from the book by Russ Olsen. Everything has been compiled into this one re
 - [Observers](#Observers)
   - [Hand-Built Solution](#Hand-Built-Solution)
   - [Ruby Standard Library](#Ruby-Standard-Library)
+- [Composites](#Composites)
+  - [Baking a Cake](#Baking-a-Cake)
 
 # Introduction
 
@@ -322,6 +324,27 @@ class Employee
 end
 ```
 
+We can also pass in a code block as an observer like so:
+
+```ruby
+class Employee
+  # ...
+  def notify_observers
+    @observers.each do |observer|
+      observer.call(self)
+    end
+  end
+  # ...
+end
+
+fred = Employee.new('Fred', 'Crane Operator', 30000)
+
+fred.add_observer do |changed_employee|
+  puts("Cut a new check for #{changed_employee.name}!")
+  puts("His salary is now #{changed_employee.salary}!")
+end
+```
+
 ## Ruby Standard Library
 
 The ruby standard library comes with a built in `Observable` module that works in a similar way to the one written above:
@@ -345,23 +368,87 @@ class Employee
 end
 ```
 
-We can also pass in a code block as an observer like so:
+# Composites
+
+The composite pattern recommends that when you are building large complex objects, they should be _composed_ of smaller, more simpler objects. It is a highly flexible pattern that can be applied in many scenarios, such as hierarchies and with complex multi-step processes.
+
+With this pattern, you'll usually end up defining:
+
+1. The most basic type of object that represents a leaf (Task)
+2. A _composite_ class composed of those leaves (CompositeTask)
+
+## Baking a Cake
+
+When baking a cake, we need to do the following.
+
+```
+1. Make Batter
+   1. Add dry ingredients
+   2. Add liquids
+   3. Mix
+2. Fill pan
+3. Bake
+4. Frost
+```
 
 ```ruby
-class Employee
-  # ...
-  def notify_observers
-    @observers.each do |observer|
-      observer.call(self)
-    end
+# Our `leaf` class - a Task
+class Task
+  attr_reader :name
+
+  def initialize(name)
+    @name = name
   end
-  # ...
+
+  def get_time_required
+    0.0
+  end
 end
 
-fred = Employee.new('Fred', 'Crane Operator', 30000)
+# Our `composite` class, composed of subtask Tasks
+# A composite should behave similarly to the basic leaf
+class CompositeTask < Task
+  def initialize(name)
+    super(name)
+    @subtasks = []
+  end
 
-fred.add_observer do |changed_employee|
-  puts("Cut a new check for #{changed_employee.name}!")
-  puts("His salary is now #{changed_employee.salary}!")
+  def add_subtask(task)
+    @subtasks << task
+  end
+
+  def remove_subtask(task)
+    @subtasks.delete(task)
+  end
+
+  def get_time_required
+    time = 0.0
+    @subtasks.each { |task| time += task.get_time_required }
+    time
+  end
 end
+
+# The overall process, which is a composite of many subtasks
+class MakeCakeTask < CompositeTask
+  def initialize
+    super 'Make Cake'
+    add_subtask(MakeBatterTask.new)
+    add_subtask(FillPanTask.new)
+    add_subtask(FrostTask.new)
+  end
+end
+
+# The first step, also a composite
+class MakeBatterTask < CompositeTask
+  def initialize
+    super('Make Batter')
+    add_subtask(AddDryIngredientsTask.new)
+    add_subtask(AddLiquidsTask.new)
+    add_subtask(MixTask.new)
+  end
+end
+
+# Various simple tasks
+class FillPanTask < Task; end
+class FrostTask < Task; end
 ```
