@@ -12,6 +12,10 @@ Notes from the book by Russ Olsen. Everything has been compiled into this one re
     - [You Ain't Gonna Need It (YAGNI)](#You-Aint-Gonna-Need-It-YAGNI)
 - [Template Method](#Template-Method)
 - [Strategies](#Strategies)
+  - [Using `Proc` and `lambda`](#Using-Proc-and-lambda)
+- [Observers](#Observers)
+  - [Hand-Built Solution](#Hand-Built-Solution)
+  - [Ruby Standard Library](#Ruby-Standard-Library)
 
 # Introduction
 
@@ -219,6 +223,8 @@ Report.new(formatter: HTMLFormatter.new)
 Report.new(formatter: PlainTextFormatter.new)
 ```
 
+## Using `Proc` and `lambda`
+
 Since a strategy is simply a piece of code that knows how to do something, we can also use `Proc` and `lambda` to implement the Strategy pattern:
 
 ```ruby
@@ -263,4 +269,99 @@ report = Report.new do |context|
   end
 end
 report.output_report
+```
+
+# Observers
+
+The observer pattern helps us solve the problem of building a tightly integrated system, where changes in one parts of the program need to be responded to by other parts.
+
+## Hand-Built Solution
+
+```ruby
+# An includable module to make a class 'Observable'
+module Subject
+  def initialize
+    @observers = []
+  end
+
+  def add_observer(observer)
+    @observers << observer
+  end
+
+  def delete_observer(observer)
+    @observers.delete(observer)
+  end
+
+  # Pass the object that has been updated (self)
+  # to each of the observers on the object
+  def notify_observers
+    @observers.each do |observer|
+      observer.update(self)
+    end
+  end
+end
+
+# Our 'Observable'/Subject class
+class Employee
+  include Subject
+
+  attr_reader :name, :address, :salary
+
+  def initialize(name, title, salary)
+    super()
+    @name = name
+    @title = title
+    @salary = salary
+  end
+
+  # Whenever salary is updated, we notify all observers
+  def salary=(new_salary)
+    @salary = new_salary
+    notify_observers
+  end
+end
+```
+
+## Ruby Standard Library
+
+The ruby standard library comes with a built in `Observable` module that works in a similar way to the one written above:
+
+```ruby
+# Ruby standard library
+require 'observer'
+
+class Employee
+  include Observable
+
+  # ...
+
+  def salary=(new_salary)
+    @salary = new_salary
+
+    # Built-in methods to use
+    changed
+    notify_observers(self)
+  end
+end
+```
+
+We can also pass in a code block as an observer like so:
+
+```ruby
+class Employee
+  # ...
+  def notify_observers
+    @observers.each do |observer|
+      observer.call(self)
+    end
+  end
+  # ...
+end
+
+fred = Employee.new('Fred', 'Crane Operator', 30000)
+
+fred.add_observer do |changed_employee|
+  puts("Cut a new check for #{changed_employee.name}!")
+  puts("His salary is now #{changed_employee.salary}!")
+end
 ```
