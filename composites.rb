@@ -58,3 +58,5 @@ end
 # Various simple tasks
 class FillPanTask < Task; end
 class FrostTask < Task; end
+class AddLiquidsTask < Task; end
+class MixTask < Task; end

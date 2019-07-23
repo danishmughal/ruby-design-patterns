@@ -2,22 +2,26 @@
 
 Notes from the book by Russ Olsen. Everything has been compiled into this one readme for easy reference and lookup.
 
-- [Design Patterns in Ruby](#Design-Patterns-in-Ruby)
-- [Introduction](#Introduction)
-  - [Metapatterns](#Metapatterns)
-    - [1. Separate out things that are likely to change from those that are not](#1-Separate-out-things-that-are-likely-to-change-from-those-that-are-not)
-    - [2. Program to an interface, not an implementation](#2-Program-to-an-interface-not-an-implementation)
-    - [3. Prefer composition over inheritance](#3-Prefer-composition-over-inheritance)
-    - [4. Delegate, delegate, delegate](#4-Delegate-delegate-delegate)
-    - [You Ain't Gonna Need It (YAGNI)](#You-Aint-Gonna-Need-It-YAGNI)
-- [Template Method](#Template-Method)
-- [Strategies](#Strategies)
-  - [Using `Proc` and `lambda`](#Using-Proc-and-lambda)
-- [Observers](#Observers)
-  - [Hand-Built Solution](#Hand-Built-Solution)
-  - [Ruby Standard Library](#Ruby-Standard-Library)
-- [Composites](#Composites)
-  - [Baking a Cake](#Baking-a-Cake)
+- [Design Patterns in Ruby](#design-patterns-in-ruby)
+- [Introduction](#introduction)
+  - [Metapatterns](#metapatterns)
+    - [1. Separate out things that are likely to change from those that are not](#1-separate-out-things-that-are-likely-to-change-from-those-that-are-not)
+    - [2. Program to an interface, not an implementation](#2-program-to-an-interface-not-an-implementation)
+    - [3. Prefer composition over inheritance](#3-prefer-composition-over-inheritance)
+    - [4. Delegate, delegate, delegate](#4-delegate-delegate-delegate)
+    - [You Ain't Gonna Need It (YAGNI)](#you-aint-gonna-need-it-yagni)
+- [Template Method](#template-method)
+- [Strategies](#strategies)
+  - [Using `Proc` and `lambda`](#using-proc-and-lambda)
+- [Observers](#observers)
+  - [Hand-Built Solution](#hand-built-solution)
+  - [Ruby Standard Library](#ruby-standard-library)
+- [Composites](#composites)
+  - [Baking a Cake](#baking-a-cake)
+- [Iterators](#iterators)
+  - [External Iterator](#external-iterator)
+  - [Internal Iterator](#internal-iterator)
+    - [`Enumerable`](#enumerable)
 
 # Introduction
 
@@ -451,4 +455,115 @@ end
 # Various simple tasks
 class FillPanTask < Task; end
 class FrostTask < Task; end
+class AddLiquidsTask < Task; end
+class MixTask < Task; end
+```
+
+# Iterators
+
+The iterator pattern allows an aggregate object to be accessed sequentially without exposing its underlying implementation.
+
+## External Iterator
+
+With external iterators, you have access to an instantiated iterator object, which gives your more flexibility as to what you can do with it.
+
+```ruby
+# An External Iterator (Java-style)
+class ExternalIterator
+  def initialize(array)
+    @array = array
+    @index = 0
+  end
+
+  def has_next?
+    @index < @array.length
+  end
+
+  def item
+    @array[@index]
+  end
+
+  def next_item
+    value = @array[@index]
+    @index += 1
+    value
+  end
+end
+
+# Using the iterator
+array = %w[red blue green]
+i = ExternalIterator.new(array)
+
+while i.has_next?
+  puts 'Next Item:'
+  puts i.next_item
+end
+
+# Can also use with strings as it also has a `length` method
+i = ExternalIterator.new('abc')
+puts i.next_item.chr while i.has_next?
+```
+
+## Internal Iterator
+
+With internal iterators, we pass down a code block into the iterator itself -- therefore all of the actual iteration logic is performed within it, internally.
+
+There is no separate iterator object to manage, leading to simpler code.
+
+A simple implentation of `for_each_object`, which works similarly to the built-in `each` method:
+
+```ruby
+# A hand-rolled internal iterator
+def for_each_element(array)
+  i = 0
+  while i < array.length
+    yield (array[i])
+    i += 1
+  end
+end
+
+a = [10, 20, 30]
+for_each_element(a) { |element| puts "Element: #{element}" }
+```
+
+### `Enumerable`
+
+Ruby provides a built-in mixin `Enumerable` which adds in a number of useful methods for constructing Iterators.
+
+```ruby
+# Enumerable Mixin
+class Portfolio
+  include Enumerable
+
+  def initialize
+    @accounts = []
+  end
+
+  def add_account
+    @accounts << account
+  end
+
+  # Need to define an `each` method
+  def each(&block)
+    @accounts.each(&block)
+  end
+end
+
+class Account
+  attr_accessor :name, :balance
+
+  def initialize(name, balance)
+    @name = name
+    @balance = balance
+  end
+
+  def <=>(other)
+    balance <=> other.balance
+  end
+end
+
+# We now have access to various Enumerable methods
+my_portfolio = Portfolio.new
+my_portfolio.any? { |account| account.balance > 2000 }
+my_portfolio.all? { |account| account.balance >= 10 }
 ```
