@@ -35,7 +35,7 @@ end
 i = ExternalIterator.new('abc')
 puts i.next_item.chr while i.has_next?
 
-# A basic internal iterator
+# A basic Internal Iterator
 def for_each_element(array)
   i = 0
   while i < array.length
