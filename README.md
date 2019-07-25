@@ -22,6 +22,8 @@ Notes from the book by Russ Olsen. Everything has been compiled into this one re
   - [External Iterator](#external-iterator)
   - [Internal Iterator](#internal-iterator)
     - [`Enumerable`](#enumerable)
+- [Commands](#commands)
+  - [Composite Command](#composite-command)
 
 # Introduction
 
@@ -566,4 +568,86 @@ end
 my_portfolio = Portfolio.new
 my_portfolio.any? { |account| account.balance > 2000 }
 my_portfolio.all? { |account| account.balance >= 10 }
+```
+
+# Commands
+
+The Command pattern involes setting up "command objects" whose sole responsibility is to carry out some specific instructions when executed.
+
+For example, the following scenario represents how one might design a button class for a GUI that can be extended by other developers to do whatever they need:
+
+```ruby
+class SlickButton
+  attr_accessor :command
+
+  def initialize(command)
+    @command = command
+  end
+
+  def on_button_push
+    @command.execute if command
+  end
+end
+
+class SaveCommand
+  def execute
+    # ... Save the document
+  end
+end
+
+# We supply a command when construction a button
+SlickButton.new(SaveCommand.new)
+```
+
+We can use the Command pattern without having to specifically create a Command class by just passing in a code block / `Proc`:
+
+```ruby
+# Code-block Example
+class SlickButton
+  attr_accessor :command
+
+  def initialize(&block)
+    @command = block
+  end
+
+  def on_button_push
+    @command&.call
+  end
+end
+
+# To use:
+new_button = SlickButton.new do
+  puts 'Button pressed'
+end
+```
+
+## Composite Command
+
+As processes grow in complexity, we can't keep all of our logic in a single command object. By combining the composite and command patterns, we can create a `CompositeCommand` that serves as a wrapper for and keeps track of the state of multiple sub-commands.
+
+```ruby
+# Composite Command
+class CompositeCommand
+  def initialize(commands = [])
+    @commands = commands
+  end
+
+  def add_command(command)
+    @commands << command
+  end
+
+  def execute
+    @commands.each(&:execute)
+  end
+end
+
+class CreateFile; end
+class CopyFile; end
+class DeleteFile; end
+
+# Using the composite
+cmds = CompositeCommand.new
+cmds.add_command(CreateFile.new('example.txt', 'Words'))
+cmds.add_command(CopyFile.new('example.txt', 'example2.txt'))
+cmds.add_command(DeleteFile.new('example.txt'))
 ```
