@@ -24,6 +24,8 @@ Notes from the book by Russ Olsen. Everything has been compiled into this one re
     - [`Enumerable`](#enumerable)
 - [Commands](#commands)
   - [Composite Command](#composite-command)
+- [Adapters](#adapters)
+  - [Writing an Adapter class](#writing-an-adapter-class)
 
 # Introduction
 
@@ -574,6 +576,8 @@ my_portfolio.all? { |account| account.balance >= 10 }
 
 The Command pattern involes setting up "command objects" whose sole responsibility is to carry out some specific instructions when executed.
 
+This pattern is similar to the Observer pattern, except for the fact that commands do not care at all about the actual state of the object that calls them.
+
 For example, the following scenario represents how one might design a button class for a GUI that can be extended by other developers to do whatever they need:
 
 ```ruby
@@ -650,4 +654,63 @@ cmds = CompositeCommand.new
 cmds.add_command(CreateFile.new('example.txt', 'Words'))
 cmds.add_command(CopyFile.new('example.txt', 'example2.txt'))
 cmds.add_command(DeleteFile.new('example.txt'))
+```
+
+# Adapters
+
+Similarly to the hardware world, software needs mechanisms to make sure that certain pieces of code can correctly communicate with others.
+
+An adapter is an object that helps make other objects work better with each other -- it unifies interfaces.
+
+## Writing an Adapter class
+
+```ruby
+# The Encrypter encrypts text from a reader file into a writer file
+class Encrypter
+  def initialize(key)
+    @key = key
+  end
+
+  def encrypt(reader, writer)
+    key_index = 0
+    until reader.eof?
+      clear_char = reader.getc
+      encrypted_char = clear_char ^ @key[key_index]
+      writer.putc(encrypted_char)
+      key_index = (key_index + 1) % @key.size
+    end
+  end
+end
+
+# When dealing strictly with files, it works well:
+reader = File.open('message.txt')
+writer = File.open('message.encrypted', 'w')
+encrypter = Encrypter.new('my secret key')
+encrypter.encrypt(reader, writer)
+
+# If we want the Encrypter to work with strings, we can write an adapter:
+class StringIOAdapter
+  def initialize(string)
+    @string = string
+    @position = 0
+  end
+
+  def getc
+    raise EOFError if @position >= @string.length
+
+    ch = @string[@position]
+    @position += 1
+    ch
+  end
+
+  def eof?
+    @position >= @string.length
+  end
+end
+
+# We can now adapt strings to be Encrypter-compatible:
+reader = StringIOAdapter.new('We attack at dawn')
+writer = File.open('out.txt', 'w')
+encrypter = Encrypter.new('XYZZY')
+encrypter.encrypt(reader, writer)
 ```
