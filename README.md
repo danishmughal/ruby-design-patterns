@@ -26,6 +26,9 @@ Notes from the book by Russ Olsen. Everything has been compiled into this one re
   - [Composite Command](#composite-command)
 - [Adapters](#adapters)
   - [Writing an Adapter class](#writing-an-adapter-class)
+- [Proxies](#proxies)
+  - [Protection Proxies](#protection-proxies)
+  - [Virtual Proxies](#virtual-proxies)
 
 # Introduction
 
@@ -713,4 +716,159 @@ reader = StringIOAdapter.new('We attack at dawn')
 writer = File.open('out.txt', 'w')
 encrypter = Encrypter.new('XYZZY')
 encrypter.encrypt(reader, writer)
+```
+
+# Proxies
+
+The Proxy Pattern is useful when we want to provide a layer of functionality on top of an object, but don't want to really change how that object is used by others.
+
+Some use cases:
+
+- Building an authorization/access-control policy for objects
+- Delaying creation of an expensive object
+- Hiding the location of an actual object
+
+First let's define a core BankAccount class:
+
+```ruby
+class BankAccount
+  attr_reader :balance
+
+  def initialize(starting_balance = 0)
+    @balance = starting_balance
+  end
+
+  def deposit(amount)
+    @balance += amount
+  end
+
+  def withdraw(amount)
+    @balance -= amount
+  end
+end
+```
+
+## Protection Proxies
+
+We can create a protection proxy for the bank account to restrict access/usage of the object:
+
+```ruby
+# Protection Proxy
+class AccountProtectionProxy
+  def initialize(real_account, owner_name)
+    @subject = real_account
+    @owner_name = owner_name
+  end
+
+  def deposit(amount)
+    check_access
+    @subject.deposit(amount)
+  end
+
+  def withdraw(amount)
+    check_access
+    @subject.withdraw(amount)
+  end
+
+  def balance
+    check_access
+    @subject.balance
+  end
+
+  def check_access
+    if Etc.getlogin != @owner_name
+      raise "Illegal access: #{Etc.getlogin} cannot access account."
+    end
+  end
+end
+```
+
+Ruby gives us a few metaprogramming shortcuts for writing proxies, namely the `method_missing` method which is triggered whenever an undefined method on an object is called. We can use this to delegate the correct message to the correct object after the proxy has done its work:
+
+```ruby
+# Protection Proxy - the Ruby way
+class AccountProtectionProxy
+  def initialize(real_account, owner_name)
+    @real_account = real_account
+    @owner_name = owner_name
+  end
+
+  def method_missing(name, *args)
+    check_access
+    @subject.send(name, *args)
+  end
+
+  def check_access
+    if Authentication.getlogin != @owner_name
+      raise "Illegal access: #{Authentication.getlogin} cannot access account."
+    end
+  end
+end
+```
+
+## Virtual Proxies
+
+We can create virtual proxies to delay the creation of expensive objects until they are needed.
+
+```ruby
+# Virtual Proxy
+class AccountProtectionProxy
+  def initialize(starting_balance = 0)
+    @starting_balance = starting_balance
+  end
+
+  def deposit(amount)
+    subject.deposit(amount)
+  end
+
+  def withdraw(amount)
+    subject.withdraw(amount)
+  end
+
+  def balance
+    subject.balance
+  end
+
+  def subject
+    @subject ||= BankAccount.new(@starting_balance)
+  end
+end
+```
+
+The above approach can be improved by de-coupling the proxy from BankAccount and allowing a code black to be passed in during initialization:
+
+```ruby
+# Proc-based Virtual Proxy
+class VirtualAccountProxy
+  def initialize(&creation_block)
+    @creation_block = creation_block
+  end
+
+  # ...
+
+  def subject
+    @subject ||= @creation_block.call
+  end
+end
+
+account = VirtualAccountProxy.new { BankAccount.new(10) }
+```
+
+We can take the above example and use the same `method_missing` metaprogramming strategy to write a virtual proxy:
+
+```ruby
+# Virtual Proxy - the Ruby way
+class VirtualAccountProxy
+  def initialize(&creation_block)
+    @creation_block = creation_block
+  end
+
+  def method_missing(name, *args)
+    subject.send(name, *args)
+  end
+
+  def subject
+    @subject ||= @creation_block.call
+  end
+end
 ```
